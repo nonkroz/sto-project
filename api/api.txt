@@ -1,0 +1,239 @@
+openapi: 3.0.3
+info:
+  title: CarPrice System API
+  version: 1.0.0
+  description: API для інтелектуального прогнозування ринкової вартості автомобілів за допомогою ML.
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /valuations:
+    get:
+      summary: Отримати список оцінок користувача
+      operationId: getValuations
+      tags: [Valuations]
+      responses:
+        '200':
+          description: Успішний список
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Valuation'
+    post:
+      summary: Створити новий запит на прогноз ціни (AI-оцінка)
+      operationId: createValuation
+      tags: [Valuations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateValuationRequest'
+      responses:
+        '201':
+          description: Оцінка успішно згенерована ШІ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Valuation'
+        '400':
+          $ref: '#/components/responses/400Error'
+
+  /valuations/{id}:
+    get:
+      summary: Отримати детальний звіт про оцінку за ID
+      operationId: getValuationById
+      tags: [Valuations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Деталі оцінки з графіками ринку
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Valuation'
+        '404':
+          $ref: '#/components/responses/404Error'
+    patch:
+      summary: Оновити статус або інформацію про оцінку
+      operationId: updateValuation
+      tags: [Valuations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Статус оновлено
+    delete:
+      summary: Видалити запит на оцінку з історії
+      operationId: deleteValuation
+      tags: [Valuations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Оцінку видалено
+
+  /datasets:
+    get:
+      summary: Отримати список датасетів для аналітика
+      operationId: getDatasets
+      tags: [Datasets]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список наборі даних
+    post:
+      summary: Завантажити новий набір даних для перенавчання моделей
+      operationId: uploadDataset
+      tags: [Datasets]
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Датасет успішно додано
+
+  /datasets/{id}/retrain:
+    post:
+      summary: Запустити процес перенавчання ML-моделі на основі датасету
+      operationId: retrainModel
+      tags: [Datasets]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '202':
+          description: Перенавчання запущено в фоні (BPMN Task)
+
+  /users:
+    get:
+      summary: Отримати список користувачів системи (для адміна)
+      operationId: getUsers
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список користувачів
+
+  /users/{id}/role:
+    patch:
+      summary: Змінити технічну роль або права користувача
+      operationId: updateUserRole
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  example: "Бізнес-аналітик"
+      responses:
+        '200':
+          description: Роль успішно змінено
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    400Error:
+      description: Некоректні вхідні дані (Помилка валідації полів)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    404Error:
+      description: Ресурс не знайдено
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    Valuation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        vin:
+          type: string
+          example: "1HGBH41JXMN109186"
+        car_brand:
+          type: string
+          example: "Toyota"
+        model:
+          type: string
+          example: "Camry"
+        year:
+          type: integer
+          example: 2020
+        predicted_price:
+          type: number
+          format: float
+          example: 24500.00
+        status:
+          type: string
+          enum: [pending, calculated, verified, failed]
+          example: "calculated"
+    CreateValuationRequest:
+      type: object
+      required:
+        - vin
+      properties:
+        vin:
+          type: string
+          example: "1HGBH41JXMN109186"
+        mileage:
+          type: integer
+          example: 45000
+    ErrorResponse:
+      type: object
+      properties:
+        error_code:
+          type: string
+          example: "VALIDATION_FAILED"
+        message:
+          type: string
+          example: "Введений некоректний формат VIN-коду"
